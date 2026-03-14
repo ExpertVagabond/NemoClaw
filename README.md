@@ -5,31 +5,33 @@ Migrate and run OpenClaw inside OpenShell with optional NIM-backed inference.
 ## Architecture
 
 ```
-openshell-plugin/                # Thin TypeScript plugin (runs in-process with OpenClaw gateway)
-  src/
-    index.ts                 # Plugin entry: registers all openshell commands
-    commands/                # UX layer: argument handling, progress, guardrails
-      launch.ts              # Fresh install (prefers OpenShell-native for net-new users)
-      migrate.ts             # Primary value: migrate host OpenClaw into sandbox
-      connect.ts             # Interactive shell into sandbox
-      status.ts              # Blueprint run state + sandbox health
-      logs.ts                # Stream logs from blueprint/sandbox/inference
-      eject.ts               # Rollback to host installation from snapshot
-    blueprint/               # Blueprint resolution + execution
-      resolve.ts             # Version resolution, cache management
-      verify.ts              # Digest verification, compatibility checks
-      exec.ts                # Subprocess execution of blueprint runner
-      state.ts               # Persistent state (run IDs, snapshots)
+openshell-plugin/                   Thin TypeScript plugin (in-process with OpenClaw gateway)
+├── src/
+│   ├── index.ts                    Plugin entry — registers all openshell commands
+│   ├── commands/
+│   │   ├── launch.ts               Fresh install (prefers OpenShell-native for net-new)
+│   │   ├── migrate.ts              Migrate host OpenClaw into sandbox
+│   │   ├── connect.ts              Interactive shell into sandbox
+│   │   ├── status.ts               Blueprint run state + sandbox health
+│   │   ├── logs.ts                 Stream logs from blueprint/sandbox/inference
+│   │   └── eject.ts                Rollback to host install from snapshot
+│   └── blueprint/
+│       ├── resolve.ts              Version resolution, cache management
+│       ├── verify.ts               Digest verification, compatibility checks
+│       ├── exec.ts                 Subprocess execution of blueprint runner
+│       └── state.ts                Persistent state (run IDs, snapshots)
+├── openclaw.plugin.json            Plugin manifest
+└── package.json                    Commands declared under openclaw.extensions
 
-openshell-blueprint/             # Versioned blueprint artifact (separate release stream)
-  blueprint.yaml             # Manifest: version, profiles, compatibility
-  orchestrator/
-    runner.py                # CLI runner: plan/apply/status/rollback
-  policies/
-    openclaw-sandbox.yaml    # Conservative static baseline policy
-  migrations/
-    snapshot.py              # Snapshot/restore/cutover/rollback logic
-  iac/                       # (future) Declarative infrastructure modules
+openshell-blueprint/                Versioned blueprint artifact (separate release stream)
+├── blueprint.yaml                  Manifest — version, profiles, compatibility
+├── orchestrator/
+│   └── runner.py                   CLI runner — plan / apply / status / rollback
+├── policies/
+│   └── openclaw-sandbox.yaml       Strict baseline network + filesystem policy
+├── migrations/
+│   └── snapshot.py                 Snapshot / restore / cutover / rollback logic
+└── iac/                            (future) Declarative infrastructure modules
 ```
 
 ## Quick Start
