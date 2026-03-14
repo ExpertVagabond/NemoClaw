@@ -2,61 +2,63 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { execSync } from "node:child_process";
-import type { CommandContext } from "../index.js";
+import type { PluginLogger, OpenShellPluginConfig } from "../index.js";
 import { resolveBlueprint } from "../blueprint/resolve.js";
 import { verifyBlueprintDigest, checkCompatibility } from "../blueprint/verify.js";
 import { execBlueprint } from "../blueprint/exec.js";
 import { loadState, saveState } from "../blueprint/state.js";
 import { detectHostOpenClaw } from "./migrate.js";
 
-export async function launch(ctx: CommandContext): Promise<void> {
-  const { api, config, flags } = ctx;
-  const force = flags["force"] as boolean;
-  const profile = flags["profile"] as string;
+export interface LaunchOptions {
+  force: boolean;
+  profile: string;
+  logger: PluginLogger;
+  pluginConfig: OpenShellPluginConfig;
+}
 
-  api.log("info", "OpenShell Plugin launch: setting up OpenClaw inside OpenShell");
+export async function cliLaunch(opts: LaunchOptions): Promise<void> {
+  const { force, profile, logger, pluginConfig } = opts;
+
+  logger.info("OpenShell Plugin launch: setting up OpenClaw inside OpenShell");
 
   // Check if there's an existing host OpenClaw installation
   const hostState = detectHostOpenClaw();
 
   if (!hostState.exists && !force) {
-    api.log("info", "");
-    api.log("info", "No existing OpenClaw installation detected on this host.");
-    api.log("info", "");
-    api.log("info", "For net-new users, the recommended path is OpenShell-native setup:");
-    api.log("info", "");
-    api.log("info", "  openshell sandbox create --from openclaw --name openclaw");
-    api.log("info", "  openshell sandbox connect openclaw");
-    api.log("info", "");
-    api.log(
-      "info",
+    logger.info("");
+    logger.info("No existing OpenClaw installation detected on this host.");
+    logger.info("");
+    logger.info("For net-new users, the recommended path is OpenShell-native setup:");
+    logger.info("");
+    logger.info("  openshell sandbox create --from openclaw --name openclaw");
+    logger.info("  openshell sandbox connect openclaw");
+    logger.info("");
+    logger.info(
       "This avoids installing OpenClaw on the host only to redeploy it inside OpenShell.",
     );
-    api.log("info", "");
-    api.log("info", "To proceed with plugin-driven bootstrap anyway, use --force.");
+    logger.info("");
+    logger.info("To proceed with plugin-driven bootstrap anyway, use --force.");
     return;
   }
 
   if (hostState.exists && !force) {
-    api.log(
-      "info",
+    logger.info(
       "Existing OpenClaw installation detected. Consider using 'openclaw openshell migrate' instead.",
     );
-    api.log(
-      "info",
+    logger.info(
       "Use --force to proceed with a fresh launch (existing config will not be migrated).",
     );
     return;
   }
 
   // Resolve and verify blueprint
-  api.progress("Resolving blueprint", 10);
-  const blueprint = await resolveBlueprint(config);
+  logger.info("Resolving blueprint...");
+  const blueprint = await resolveBlueprint(pluginConfig);
 
-  api.progress("Verifying blueprint integrity", 20);
+  logger.info("Verifying blueprint integrity...");
   const verification = verifyBlueprintDigest(blueprint.localPath, blueprint.manifest);
   if (!verification.valid) {
-    api.log("error", `Blueprint verification failed: ${verification.errors.join(", ")}`);
+    logger.error(`Blueprint verification failed: ${verification.errors.join(", ")}`);
     return;
   }
 
@@ -65,12 +67,12 @@ export async function launch(ctx: CommandContext): Promise<void> {
   const openclawVersion = getOpenclawVersion();
   const compat = checkCompatibility(blueprint.manifest, openshellVersion, openclawVersion);
   if (compat.length > 0) {
-    api.log("error", `Compatibility check failed:\n  ${compat.join("\n  ")}`);
+    logger.error(`Compatibility check failed:\n  ${compat.join("\n  ")}`);
     return;
   }
 
   // Plan
-  api.progress("Planning deployment", 30);
+  logger.info("Planning deployment...");
   const planResult = await execBlueprint(
     {
       blueprintPath: blueprint.localPath,
@@ -78,16 +80,16 @@ export async function launch(ctx: CommandContext): Promise<void> {
       profile,
       jsonOutput: true,
     },
-    api,
+    logger,
   );
 
   if (!planResult.success) {
-    api.log("error", `Blueprint plan failed: ${planResult.output}`);
+    logger.error(`Blueprint plan failed: ${planResult.output}`);
     return;
   }
 
   // Apply
-  api.progress("Deploying OpenClaw sandbox", 50);
+  logger.info("Deploying OpenClaw sandbox...");
   const applyResult = await execBlueprint(
     {
       blueprintPath: blueprint.localPath,
@@ -96,11 +98,11 @@ export async function launch(ctx: CommandContext): Promise<void> {
       planPath: planResult.runId,
       jsonOutput: true,
     },
-    api,
+    logger,
   );
 
   if (!applyResult.success) {
-    api.log("error", `Blueprint apply failed: ${applyResult.output}`);
+    logger.error(`Blueprint apply failed: ${applyResult.output}`);
     return;
   }
 
@@ -110,18 +112,17 @@ export async function launch(ctx: CommandContext): Promise<void> {
     lastRunId: applyResult.runId,
     lastAction: "launch",
     blueprintVersion: blueprint.version,
-    sandboxName: config.sandboxName,
+    sandboxName: pluginConfig.sandboxName,
   });
 
-  api.progress("Launch complete", 100);
-  api.log("info", "");
-  api.log("info", "OpenClaw is now running inside OpenShell.");
-  api.log("info", `Sandbox: ${config.sandboxName}`);
-  api.log("info", "");
-  api.log("info", "Next steps:");
-  api.log("info", "  openclaw openshell connect    # Enter the sandbox");
-  api.log("info", "  openclaw openshell status     # Check health");
-  api.log("info", "  openshell term               # Monitor network egress");
+  logger.info("");
+  logger.info("OpenClaw is now running inside OpenShell.");
+  logger.info(`Sandbox: ${pluginConfig.sandboxName}`);
+  logger.info("");
+  logger.info("Next steps:");
+  logger.info("  openclaw openshell connect    # Enter the sandbox");
+  logger.info("  openclaw openshell status     # Check health");
+  logger.info("  openshell term               # Monitor network egress");
 }
 
 function getOpenshellVersion(): string {

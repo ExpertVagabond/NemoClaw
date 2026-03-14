@@ -4,7 +4,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { PluginAPI } from "../index.js";
+import type { PluginLogger } from "../index.js";
 
 export type BlueprintAction = "plan" | "apply" | "status" | "rollback";
 
@@ -32,13 +32,13 @@ function failResult(action: BlueprintAction, message: string): BlueprintRunResul
 
 export async function execBlueprint(
   options: BlueprintRunOptions,
-  api: PluginAPI,
+  logger: PluginLogger,
 ): Promise<BlueprintRunResult> {
   const runnerPath = join(options.blueprintPath, "orchestrator", "runner.py");
 
   if (!existsSync(runnerPath)) {
     const msg = `Blueprint runner not found at ${runnerPath}. Is the blueprint installed correctly?`;
-    api.log("error", msg);
+    logger.error(msg);
     return failResult(options.action, msg);
   }
 
@@ -49,7 +49,7 @@ export async function execBlueprint(
   if (options.runId) args.push("--run-id", options.runId);
   if (options.dryRun) args.push("--dry-run");
 
-  api.log("info", `Running blueprint: ${options.action} (profile: ${options.profile})`);
+  logger.info(`Running blueprint: ${options.action} (profile: ${options.profile})`);
 
   return new Promise((resolve) => {
     const chunks: string[] = [];
@@ -66,15 +66,11 @@ export async function execBlueprint(
     proc.stdout.on("data", (data: Buffer) => {
       const line = data.toString();
       chunks.push(line);
-      const progressMatch = line.match(/^PROGRESS:(\d+):(.+)$/m);
-      if (progressMatch) {
-        api.progress(progressMatch[2], parseInt(progressMatch[1], 10));
-      }
     });
 
     proc.stderr.on("data", (data: Buffer) => {
       const line = data.toString().trim();
-      if (line) api.log("warn", line);
+      if (line) logger.warn(line);
     });
 
     proc.on("close", (code) => {
@@ -93,7 +89,7 @@ export async function execBlueprint(
       const msg = err.message.includes("ENOENT")
         ? "python3 not found. The blueprint runner requires Python 3.11+."
         : `Failed to start blueprint runner: ${err.message}`;
-      api.log("error", msg);
+      logger.error(msg);
       resolve(failResult(options.action, msg));
     });
   });

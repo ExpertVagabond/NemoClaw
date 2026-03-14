@@ -1,12 +1,139 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-import { launch } from "./commands/launch.js";
-import { migrate } from "./commands/migrate.js";
-import { connect } from "./commands/connect.js";
-import { status } from "./commands/status.js";
-import { logs } from "./commands/logs.js";
-import { eject } from "./commands/eject.js";
+/**
+ * OpenShell Plugin for OpenClaw
+ *
+ * Uses the real OpenClaw plugin API. Types defined locally are minimal stubs
+ * that match the OpenClaw SDK interfaces available at runtime via
+ * `openclaw/plugin-sdk`. We define them here because the SDK package is only
+ * available inside the OpenClaw host process and cannot be imported at build
+ * time.
+ */
+
+import type { Command } from "commander";
+import { registerCliCommands } from "./cli.js";
+import { handleSlashCommand } from "./commands/slash.js";
+
+// ---------------------------------------------------------------------------
+// OpenClaw Plugin SDK compatible types (mirrors openclaw/plugin-sdk)
+// ---------------------------------------------------------------------------
+
+/** Subset of OpenClawConfig that we actually read. */
+export interface OpenClawConfig {
+  [key: string]: unknown;
+}
+
+/** Logger provided by the plugin host. */
+export interface PluginLogger {
+  info(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
+  debug(message: string): void;
+}
+
+/** Context passed to slash-command handlers. */
+export interface PluginCommandContext {
+  senderId?: string;
+  channel: string;
+  isAuthorizedSender: boolean;
+  args?: string;
+  commandBody: string;
+  config: OpenClawConfig;
+  from?: string;
+  to?: string;
+  accountId?: string;
+}
+
+/** Return value from a slash-command handler. */
+export interface PluginCommandResult {
+  text?: string;
+  mediaUrl?: string;
+  mediaUrls?: string[];
+}
+
+/** Registration shape for a slash command. */
+export interface PluginCommandDefinition {
+  name: string;
+  description: string;
+  acceptsArgs?: boolean;
+  requireAuth?: boolean;
+  handler: (ctx: PluginCommandContext) => PluginCommandResult | Promise<PluginCommandResult>;
+}
+
+/** Context passed to the CLI registrar callback. */
+export interface PluginCliContext {
+  program: Command;
+  config: OpenClawConfig;
+  workspaceDir?: string;
+  logger: PluginLogger;
+}
+
+/** CLI registrar callback type. */
+export type PluginCliRegistrar = (ctx: PluginCliContext) => void | Promise<void>;
+
+/** Auth method for a provider plugin. */
+export interface ProviderAuthMethod {
+  type: string;
+  envVar?: string;
+  headerName?: string;
+  label?: string;
+}
+
+/** Model entry in a provider's model catalog. */
+export interface ModelProviderEntry {
+  id: string;
+  label: string;
+  contextWindow?: number;
+  maxOutput?: number;
+}
+
+/** Model catalog shape. */
+export interface ModelProviderConfig {
+  chat?: ModelProviderEntry[];
+  completion?: ModelProviderEntry[];
+}
+
+/** Registration shape for a custom model provider. */
+export interface ProviderPlugin {
+  id: string;
+  label: string;
+  docsPath?: string;
+  aliases?: string[];
+  envVars?: string[];
+  models?: ModelProviderConfig;
+  auth: ProviderAuthMethod[];
+}
+
+/** Background service registration. */
+export interface PluginService {
+  id: string;
+  start: (ctx: { config: OpenClawConfig; logger: PluginLogger }) => void | Promise<void>;
+  stop?: (ctx: { config: OpenClawConfig; logger: PluginLogger }) => void | Promise<void>;
+}
+
+/**
+ * The API object injected into the plugin's register function by the OpenClaw
+ * host. Only the methods we actually call are listed here.
+ */
+export interface OpenClawPluginApi {
+  id: string;
+  name: string;
+  version?: string;
+  config: OpenClawConfig;
+  pluginConfig?: Record<string, unknown>;
+  logger: PluginLogger;
+  registerCommand: (command: PluginCommandDefinition) => void;
+  registerCli: (registrar: PluginCliRegistrar, opts?: { commands?: string[] }) => void;
+  registerProvider: (provider: ProviderPlugin) => void;
+  registerService: (service: PluginService) => void;
+  resolvePath: (input: string) => string;
+  on: (hookName: string, handler: (...args: unknown[]) => void) => void;
+}
+
+// ---------------------------------------------------------------------------
+// Plugin-specific config (read from pluginConfig in openclaw.plugin.json)
+// ---------------------------------------------------------------------------
 
 export interface OpenShellPluginConfig {
   blueprintVersion: string;
@@ -15,161 +142,94 @@ export interface OpenShellPluginConfig {
   inferenceProvider: string;
 }
 
-/**
- * Draft interface — pending alignment with OpenClaw's actual plugin API.
- *
- * This mirrors what we *expect* the OpenClaw plugin host to provide based on
- * public docs and the extension model described in the OpenClaw RFC. Once the
- * real SDK ships, this interface should be replaced with the canonical type
- * from `@openclaw/plugin-sdk` (or similar).
- */
-export interface PluginAPI {
-  registerCommand(spec: CommandSpec): void;
-  getConfig(): OpenShellPluginConfig;
-  log(level: "info" | "warn" | "error", message: string): void;
-  progress(label: string, percent: number): void;
+const DEFAULT_PLUGIN_CONFIG: OpenShellPluginConfig = {
+  blueprintVersion: "latest",
+  blueprintRegistry: "ghcr.io/nvidia/openshell-blueprint",
+  sandboxName: "openclaw",
+  inferenceProvider: "nvidia",
+};
+
+export function getPluginConfig(api: OpenClawPluginApi): OpenShellPluginConfig {
+  const raw = api.pluginConfig ?? {};
+  return {
+    blueprintVersion:
+      typeof raw["blueprintVersion"] === "string"
+        ? raw["blueprintVersion"]
+        : DEFAULT_PLUGIN_CONFIG.blueprintVersion,
+    blueprintRegistry:
+      typeof raw["blueprintRegistry"] === "string"
+        ? raw["blueprintRegistry"]
+        : DEFAULT_PLUGIN_CONFIG.blueprintRegistry,
+    sandboxName:
+      typeof raw["sandboxName"] === "string"
+        ? raw["sandboxName"]
+        : DEFAULT_PLUGIN_CONFIG.sandboxName,
+    inferenceProvider:
+      typeof raw["inferenceProvider"] === "string"
+        ? raw["inferenceProvider"]
+        : DEFAULT_PLUGIN_CONFIG.inferenceProvider,
+  };
 }
 
-export interface CommandSpec {
-  name: string;
-  description: string;
-  args?: ArgSpec[];
-  flags?: FlagSpec[];
-  run(ctx: CommandContext): Promise<void>;
-}
+// ---------------------------------------------------------------------------
+// Plugin entry point
+// ---------------------------------------------------------------------------
 
-export interface ArgSpec {
-  name: string;
-  description: string;
-  required?: boolean;
-}
-
-export interface FlagSpec {
-  name: string;
-  description: string;
-  type: "string" | "boolean" | "number";
-  default?: string | boolean | number;
-}
-
-export interface CommandContext {
-  args: Record<string, string>;
-  flags: Record<string, string | boolean | number>;
-  config: OpenShellPluginConfig;
-  api: PluginAPI;
-}
-
-export default function openshellPlugin(api: PluginAPI): void {
+export default function register(api: OpenClawPluginApi): void {
+  // 1. Register /openshell slash command (chat interface)
   api.registerCommand({
-    name: "openshell launch",
-    description:
-      "Fresh install: bootstrap OpenClaw inside OpenShell (prefers OpenShell-native flow for net-new users)",
-    flags: [
-      {
-        name: "force",
-        description: "Skip ergonomics warning and force plugin-driven bootstrap",
-        type: "boolean",
-        default: false,
-      },
-      {
-        name: "profile",
-        description: "Blueprint profile to use (e.g., 'default', 'nim-local', 'ollama')",
-        type: "string",
-        default: "default",
-      },
-    ],
-    run: launch,
+    name: "openshell",
+    description: "OpenShell sandbox management (status, eject).",
+    acceptsArgs: true,
+    handler: (ctx) => handleSlashCommand(ctx, api),
   });
 
-  api.registerCommand({
-    name: "openshell migrate",
-    description:
-      "Migrate existing host OpenClaw installation into an OpenShell sandbox with snapshot/restore/cutover",
-    flags: [
+  // 2. Register `openclaw openshell` CLI subcommands (commander.js)
+  api.registerCli(
+    (cliCtx) => {
+      registerCliCommands(cliCtx, api);
+    },
+    { commands: ["openshell"] },
+  );
+
+  // 3. Register nvidia-nim provider for build.nvidia.com models
+  api.registerProvider({
+    id: "nvidia-nim",
+    label: "NVIDIA NIM (build.nvidia.com)",
+    docsPath: "https://build.nvidia.com/docs",
+    aliases: ["nvidia", "nim"],
+    envVars: ["NVIDIA_API_KEY"],
+    models: {
+      chat: [
+        {
+          id: "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+          label: "Nemotron Ultra 253B",
+          contextWindow: 131072,
+          maxOutput: 4096,
+        },
+        {
+          id: "nvidia/llama-3.1-nemotron-70b-instruct",
+          label: "Nemotron 70B Instruct",
+          contextWindow: 131072,
+          maxOutput: 4096,
+        },
+        {
+          id: "meta/llama-3.3-70b-instruct",
+          label: "Llama 3.3 70B Instruct",
+          contextWindow: 131072,
+          maxOutput: 4096,
+        },
+      ],
+    },
+    auth: [
       {
-        name: "dry-run",
-        description: "Show what would be migrated without making changes",
-        type: "boolean",
-        default: false,
-      },
-      {
-        name: "profile",
-        description: "Blueprint profile to use",
-        type: "string",
-        default: "default",
-      },
-      {
-        name: "skip-backup",
-        description: "Skip creating a host backup snapshot (not recommended)",
-        type: "boolean",
-        default: false,
+        type: "bearer",
+        envVar: "NVIDIA_API_KEY",
+        headerName: "Authorization",
+        label: "NVIDIA API Key (from build.nvidia.com)",
       },
     ],
-    run: migrate,
   });
 
-  api.registerCommand({
-    name: "openshell connect",
-    description: "Open an interactive shell inside the OpenClaw sandbox",
-    flags: [
-      {
-        name: "sandbox",
-        description: "Sandbox name to connect to",
-        type: "string",
-        default: "openclaw",
-      },
-    ],
-    run: connect,
-  });
-
-  api.registerCommand({
-    name: "openshell status",
-    description: "Show blueprint run state, sandbox health, and backend status",
-    flags: [
-      {
-        name: "json",
-        description: "Output as JSON",
-        type: "boolean",
-        default: false,
-      },
-    ],
-    run: status,
-  });
-
-  api.registerCommand({
-    name: "openshell logs",
-    description: "Stream logs from the blueprint runner and sandbox",
-    flags: [
-      {
-        name: "follow",
-        description: "Follow log output",
-        type: "boolean",
-        default: false,
-      },
-      {
-        name: "component",
-        description: "Filter logs by component (blueprint, sandbox, inference)",
-        type: "string",
-      },
-    ],
-    run: logs,
-  });
-
-  api.registerCommand({
-    name: "openshell eject",
-    description: "Rollback from OpenShell and restore host OpenClaw installation from snapshot",
-    flags: [
-      {
-        name: "run-id",
-        description: "Specific blueprint run ID to rollback from",
-        type: "string",
-      },
-      {
-        name: "confirm",
-        description: "Skip confirmation prompt",
-        type: "boolean",
-        default: false,
-      },
-    ],
-    run: eject,
-  });
+  api.logger.info("OpenShell plugin registered.");
 }

@@ -49,8 +49,10 @@ network_policies:
     name: nvidia
     endpoints:
       - { host: integrate.api.nvidia.com, port: 443, protocol: rest, enforcement: enforce, tls: terminate }
+      - { host: inference-api.nvidia.com, port: 443, protocol: rest, enforcement: enforce, tls: terminate }
     binaries:
       - { path: /usr/local/bin/claude }
+      - { path: /usr/local/bin/openclaw }
 
   github:
     name: github

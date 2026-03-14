@@ -1,0 +1,88 @@
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+ * CLI registrar for `openclaw openshell <subcommand>`.
+ *
+ * Wires commander.js subcommands to the existing blueprint infrastructure.
+ */
+
+import type { OpenClawPluginApi, PluginCliContext } from "./index.js";
+import { getPluginConfig } from "./index.js";
+import { cliStatus } from "./commands/status.js";
+import { cliMigrate } from "./commands/migrate.js";
+import { cliLaunch } from "./commands/launch.js";
+import { cliConnect } from "./commands/connect.js";
+import { cliEject } from "./commands/eject.js";
+
+export function registerCliCommands(ctx: PluginCliContext, api: OpenClawPluginApi): void {
+  const { program, logger } = ctx;
+  const pluginConfig = getPluginConfig(api);
+
+  const openshell = program.command("openshell").description("OpenShell sandbox management");
+
+  // openclaw openshell status
+  openshell
+    .command("status")
+    .description("Show sandbox, blueprint, and inference state")
+    .option("--json", "Output as JSON", false)
+    .action(async (opts: { json: boolean }) => {
+      await cliStatus({ json: opts.json, logger, pluginConfig });
+    });
+
+  // openclaw openshell migrate
+  openshell
+    .command("migrate")
+    .description("Migrate host OpenClaw installation into an OpenShell sandbox")
+    .option("--dry-run", "Show what would be migrated without making changes", false)
+    .option("--profile <profile>", "Blueprint profile to use", "default")
+    .option("--skip-backup", "Skip creating a host backup snapshot", false)
+    .action(async (opts: { dryRun: boolean; profile: string; skipBackup: boolean }) => {
+      await cliMigrate({
+        dryRun: opts.dryRun,
+        profile: opts.profile,
+        skipBackup: opts.skipBackup,
+        logger,
+        pluginConfig,
+      });
+    });
+
+  // openclaw openshell launch
+  openshell
+    .command("launch")
+    .description("Fresh setup: bootstrap OpenClaw inside OpenShell")
+    .option("--force", "Skip ergonomics warning and force plugin-driven bootstrap", false)
+    .option("--profile <profile>", "Blueprint profile to use", "default")
+    .action(async (opts: { force: boolean; profile: string }) => {
+      await cliLaunch({
+        force: opts.force,
+        profile: opts.profile,
+        logger,
+        pluginConfig,
+      });
+    });
+
+  // openclaw openshell connect
+  openshell
+    .command("connect")
+    .description("Open an interactive shell inside the OpenClaw sandbox")
+    .option("--sandbox <name>", "Sandbox name to connect to", pluginConfig.sandboxName)
+    .action(async (opts: { sandbox: string }) => {
+      await cliConnect({ sandbox: opts.sandbox, logger });
+    });
+
+  // openclaw openshell eject
+  openshell
+    .command("eject")
+    .description("Rollback from OpenShell and restore host installation")
+    .option("--run-id <id>", "Specific blueprint run ID to rollback from")
+    .option("--confirm", "Skip confirmation prompt", false)
+    .action(async (opts: { runId?: string; confirm: boolean }) => {
+      await cliEject({
+        runId: opts.runId,
+        confirm: opts.confirm,
+        logger,
+        pluginConfig,
+      });
+    });
+}

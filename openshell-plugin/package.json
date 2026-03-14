@@ -21,11 +21,12 @@
     "clean": "rm -rf dist/"
   },
   "dependencies": {
+    "commander": "^13.1.0",
     "tar": "^7.0.0",
     "yaml": "^2.4.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.37",
     "@typescript-eslint/eslint-plugin": "^8.57.0",
     "@typescript-eslint/parser": "^8.57.0",
     "eslint": "^9.39.4",
