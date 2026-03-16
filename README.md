@@ -75,7 +75,7 @@ sudo systemctl restart docker
 git clone https://github.com/NVIDIA/openshell-openclaw-plugin.git
 cd openshell-openclaw-plugin
 sudo npm install -g .
-nemoclaw setup
+nemoclaw onboard
 ```
 
 ### macOS
