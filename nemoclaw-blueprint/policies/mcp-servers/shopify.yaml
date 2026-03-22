@@ -1,0 +1,13 @@
+# Policy: shopify-mcp
+# Tier: restricted
+# 34 tools — Shopify store management (orders, products, inventory, webhooks)
+version: 1
+network_policies:
+  shopify:
+    name: shopify
+    endpoints:
+      - host: "*.myshopify.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+content_policies: []

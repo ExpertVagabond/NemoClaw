@@ -1,0 +1,21 @@
+# Policy: solana-mcp
+# Tier: restricted
+# 28 tools — Solana blockchain operations (SPL tokens, transfers, wallets)
+version: 1
+network_policies:
+  solana:
+    name: solana
+    endpoints:
+      - host: "api.mainnet-beta.solana.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+      - host: "api.devnet.solana.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+      - host: "integrate.api.nvidia.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+content_policies: []

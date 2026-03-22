@@ -33,6 +33,12 @@ install: build-engine
 	cd nemoclaw && npm install && npm run build
 	@echo "Install complete. Rust engine at bin/nemoclaw-engine"
 
+install-all: build-engine
+	cd ../nemoclaw-orchestrator && make build
+	cd nemoclaw && npm install && npm run build
+	cd ../nemoclaw-mcp-rs && cargo build --release
+	@echo "Install complete. Start orchestrator: launchctl bootstrap gui/$$(id -u) ~/Library/LaunchAgents/com.nemoclaw.orchestrator.plist"
+
 # --- Documentation ---
 
 docs:

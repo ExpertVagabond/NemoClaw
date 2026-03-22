@@ -1,0 +1,14 @@
+# Policy: ollama-mcp
+# Tier: local-only
+# 6 tools — Local LLM inference via Ollama (chat, generate, embeddings, models)
+# Loopback only — no external network access
+version: 1
+network_policies:
+  ollama:
+    name: ollama
+    endpoints:
+      - host: "localhost"
+        port: 11434
+        protocol: rest
+        enforcement: enforce
+content_policies: []

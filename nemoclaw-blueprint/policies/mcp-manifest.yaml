@@ -1,0 +1,210 @@
+# MCP Server Policy Manifest
+# Maps all 49 PSM MCP servers + 4 first-party OAuth servers to NemoClaw policy fragments and tiers
+#
+# Tiers:
+#   local-only  — No external network. AppleScript, SQLite, local CLI, loopback only.
+#   restricted  — Allowlisted external endpoints only. Enforced per-host.
+#   full-access — Unrestricted egress (none assigned by default).
+#
+# Servers with dedicated policy files reference mcp-servers/<name>.yaml.
+# Servers without dedicated files inherit tier defaults (no network for local-only,
+# deny-all for restricted until a policy file is created).
+
+version: 1
+servers:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # LOCAL-ONLY — Apple / macOS automation (AppleScript, no network)
+  # ═══════════════════════════════════════════════════════════════════
+
+  apple-automation:
+    policy: mcp-servers/apple-automation.yaml
+    tier: local-only
+
+  apple-calendar:
+    tier: local-only
+
+  apple-fm:
+    tier: local-only
+
+  apple-imagegen:
+    tier: local-only
+
+  apple-keynote:
+    tier: local-only
+
+  apple-photos:
+    tier: local-only
+
+  apple-shortcuts:
+    tier: local-only
+
+  apple-system:
+    tier: local-only
+
+  apple-utilities:
+    tier: local-only
+
+  compressor:
+    tier: local-only
+
+  finalcut:
+    tier: local-only
+
+  freeform:
+    tier: local-only
+
+  logic:
+    tier: local-only
+
+  macos:
+    tier: local-only
+
+  mainstage:
+    tier: local-only
+
+  motion:
+    tier: local-only
+
+  numbers:
+    tier: local-only
+
+  pages:
+    tier: local-only
+
+  pixelmator:
+    tier: local-only
+
+  # ═══════════════════════════════════════════════════════════════════
+  # LOCAL-ONLY — iMessage / local messaging
+  # ═══════════════════════════════════════════════════════════════════
+
+  imessage:
+    policy: mcp-servers/imessage.yaml
+    tier: local-only
+
+  # ═══════════════════════════════════════════════════════════════════
+  # LOCAL-ONLY — Local tools (CLI, file processing, local inference)
+  # ═══════════════════════════════════════════════════════════════════
+
+  ai-music:
+    tier: local-only
+
+  image-tools:
+    tier: local-only
+
+  kino:
+    tier: local-only
+
+  mermate:
+    tier: local-only
+
+  ollama:
+    policy: mcp-servers/ollama.yaml
+    tier: local-only
+
+  rvc-webui:
+    tier: local-only
+
+  videoskill:
+    tier: local-only
+
+  # ═══════════════════════════════════════════════════════════════════
+  # LOCAL-ONLY — MCP infrastructure / meta-tools
+  # ═══════════════════════════════════════════════════════════════════
+
+  guardrails:
+    tier: local-only
+
+  nemoclaw:
+    tier: local-only
+
+  sequential-thinking:
+    tier: local-only
+
+  # ═══════════════════════════════════════════════════════════════════
+  # RESTRICTED — Blockchain / crypto (allowlisted RPC endpoints)
+  # ═══════════════════════════════════════════════════════════════════
+
+  coldstar:
+    policy: mcp-servers/coldstar.yaml
+    tier: restricted
+
+  ordinals:
+    tier: restricted
+
+  solana:
+    policy: mcp-servers/solana.yaml
+    tier: restricted
+
+  solmail:
+    tier: restricted
+
+  # ═══════════════════════════════════════════════════════════════════
+  # RESTRICTED — External APIs (allowlisted vendor endpoints)
+  # ═══════════════════════════════════════════════════════════════════
+
+  chromadb:
+    tier: restricted
+
+  cloudflare:
+    tier: restricted
+
+  cpanel:
+    policy: mcp-servers/cpanel.yaml
+    tier: restricted
+
+  fulfil:
+    policy: mcp-servers/fulfil.yaml
+    tier: restricted
+
+  github:
+    tier: restricted
+
+  jokuh:
+    tier: restricted
+
+  kali:
+    tier: restricted
+
+  music-distro:
+    tier: restricted
+
+  nvidia:
+    policy: mcp-servers/nvidia.yaml
+    tier: restricted
+
+  postgres:
+    tier: restricted
+
+  puppeteer:
+    tier: restricted
+
+  raycast:
+    tier: restricted
+
+  schneider-ops:
+    tier: restricted
+
+  shopify:
+    policy: mcp-servers/shopify.yaml
+    tier: restricted
+
+  veil:
+    tier: restricted
+
+  # ═══════════════════════════════════════════════════════════════════
+  # RESTRICTED — First-party / Google integrations (OAuth-scoped)
+  # ═══════════════════════════════════════════════════════════════════
+
+  claude_ai_Gmail:
+    tier: restricted
+
+  claude_ai_Google_Calendar:
+    tier: restricted
+
+  notebooklm-mcp:
+    tier: restricted
+
+  phantom-docs:
+    tier: restricted

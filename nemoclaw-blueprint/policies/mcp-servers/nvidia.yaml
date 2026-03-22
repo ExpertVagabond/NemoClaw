@@ -1,0 +1,17 @@
+# Policy: nvidia-mcp
+# Tier: restricted
+# 13 tools — NVIDIA NIM API (inference, guardrails, RAG, PII, translation)
+version: 1
+network_policies:
+  nvidia:
+    name: nvidia
+    endpoints:
+      - host: "integrate.api.nvidia.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+      - host: "api.nvidia.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+content_policies: []

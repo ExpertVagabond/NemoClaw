@@ -1,0 +1,13 @@
+# Policy: fulfil-mcp
+# Tier: restricted
+# 30 tools — Fulfil.io ERP (orders, inventory, shipping, warehouse, returns)
+version: 1
+network_policies:
+  fulfil:
+    name: fulfil
+    endpoints:
+      - host: "*.fulfil.io"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+content_policies: []

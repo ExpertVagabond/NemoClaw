@@ -1,0 +1,13 @@
+# Policy: cpanel-mcp
+# Tier: restricted
+# 47 tools — cPanel/WHM hosting management for purplesquirrelmedia.io on Namecheap
+version: 1
+network_policies:
+  cpanel:
+    name: cpanel
+    endpoints:
+      - host: "*.namecheap.com"
+        port: 2083
+        protocol: rest
+        enforcement: enforce
+content_policies: []

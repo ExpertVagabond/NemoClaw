@@ -1,0 +1,7 @@
+# Policy: imessage-mcp
+# Tier: local-only
+# 12 tools — iMessage via SQLite (~/Library/Messages/chat.db) + AppleScript
+# No network access — all operations are local
+version: 1
+network_policies: {}
+content_policies: []

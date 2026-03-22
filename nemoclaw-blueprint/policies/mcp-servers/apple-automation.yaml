@@ -1,0 +1,7 @@
+# Policy: apple-automation-mcp
+# Tier: local-only
+# 12 tools — AppleScript automation (Books, Keychain, Mail rules, Shortcuts)
+# No network access — all operations via local AppleScript
+version: 1
+network_policies: {}
+content_policies: []

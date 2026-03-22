@@ -1,0 +1,17 @@
+# Policy: coldstar-mcp
+# Tier: restricted
+# 22 tools — Air-gapped Solana cold wallet, minimal network access
+version: 1
+network_policies:
+  coldstar:
+    name: coldstar
+    endpoints:
+      - host: "api.mainnet-beta.solana.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+      - host: "api.devnet.solana.com"
+        port: 443
+        protocol: rest
+        enforcement: enforce
+content_policies: []
