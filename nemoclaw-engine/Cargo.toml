@@ -1,0 +1,29 @@
+[package]
+name = "nemoclaw-engine"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Rust blueprint orchestrator for NemoClaw sandboxed agent runtime"
+
+[[bin]]
+name = "nemoclaw-engine"
+path = "src/main.rs"
+
+[dependencies]
+psm-mcp-core = { path = "../../psm-mcp-core/psm-mcp-core" }
+psm-mcp-policy = { path = "../../psm-mcp-core/psm-mcp-policy" }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+thiserror = "2"
+dirs = "6"
+
+[dev-dependencies]
+tempfile = "3"

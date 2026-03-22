@@ -1,6 +1,6 @@
-.PHONY: check lint format lint-ts lint-py format-ts format-py docs docs-strict docs-live docs-clean
+.PHONY: check lint format lint-ts lint-py lint-rs format-ts format-py build-engine install docs docs-strict docs-live docs-clean
 
-check: lint-ts lint-py
+check: lint-ts lint-py lint-rs
 	@echo "All checks passed."
 
 lint: lint-ts lint-py
@@ -18,6 +18,20 @@ format-ts:
 
 format-py:
 	cd nemoclaw-blueprint && $(MAKE) format
+
+# --- Rust Engine ---
+
+lint-rs:
+	cd nemoclaw-engine && cargo clippy --all-targets -- -D warnings
+
+build-engine:
+	cd nemoclaw-engine && cargo build --release
+	mkdir -p bin
+	cp nemoclaw-engine/target/release/nemoclaw-engine bin/
+
+install: build-engine
+	cd nemoclaw && npm install && npm run build
+	@echo "Install complete. Rust engine at bin/nemoclaw-engine"
 
 # --- Documentation ---
 

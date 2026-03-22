@@ -31,31 +31,69 @@ function failResult(action: BlueprintAction, message: string): BlueprintRunResul
   return { success: false, runId: "error", action, output: message, exitCode: 1 };
 }
 
+/**
+ * Resolve the engine binary and args. Prefers the Rust nemoclaw-engine binary
+ * (installed in bin/ or on PATH) and falls back to Python runner.py.
+ */
+function resolveEngine(
+  blueprintPath: string,
+): { program: string; baseArgs: string[]; useSubcommand: boolean } | null {
+  // 1. Check for Rust binary alongside blueprint (bin/nemoclaw-engine)
+  const rustBin = join(blueprintPath, "..", "bin", "nemoclaw-engine");
+  if (existsSync(rustBin)) {
+    return { program: rustBin, baseArgs: [], useSubcommand: true };
+  }
+  // 2. Check for Rust binary in nemoclaw-engine build output
+  const rustRelease = join(blueprintPath, "..", "nemoclaw-engine", "target", "release", "nemoclaw-engine");
+  if (existsSync(rustRelease)) {
+    return { program: rustRelease, baseArgs: [], useSubcommand: true };
+  }
+  // 3. Fall back to Python runner.py
+  const runnerPath = join(blueprintPath, "orchestrator", "runner.py");
+  if (existsSync(runnerPath)) {
+    return { program: "python3", baseArgs: [runnerPath], useSubcommand: false };
+  }
+  return null;
+}
+
 export async function execBlueprint(
   options: BlueprintRunOptions,
   logger: PluginLogger,
 ): Promise<BlueprintRunResult> {
-  const runnerPath = join(options.blueprintPath, "orchestrator", "runner.py");
+  const engine = resolveEngine(options.blueprintPath);
 
-  if (!existsSync(runnerPath)) {
-    const msg = `Blueprint runner not found at ${runnerPath}. Is the blueprint installed correctly?`;
+  if (!engine) {
+    const msg = `No blueprint engine found. Install nemoclaw-engine (Rust) or ensure orchestrator/runner.py exists.`;
     logger.error(msg);
     return failResult(options.action, msg);
   }
 
-  const args: string[] = [runnerPath, options.action, "--profile", options.profile];
+  // Build args: Rust uses subcommands, Python uses positional action.
+  const args: string[] = [...engine.baseArgs];
 
-  if (options.jsonOutput) args.push("--json");
-  if (options.planPath) args.push("--plan", options.planPath);
-  if (options.runId) args.push("--run-id", options.runId);
-  if (options.dryRun) args.push("--dry-run");
-  if (options.endpointUrl) args.push("--endpoint-url", options.endpointUrl);
+  if (engine.useSubcommand) {
+    // Rust CLI: nemoclaw-engine plan --profile default
+    args.push(options.action, "--profile", options.profile);
+    if (options.planPath) args.push("--plan", options.planPath);
+    if (options.runId) args.push("--run-id", options.runId);
+    if (options.dryRun) args.push("--dry-run");
+    if (options.endpointUrl) args.push("--endpoint-url", options.endpointUrl);
+  } else {
+    // Python CLI: python3 runner.py plan --profile default
+    args.push(options.action, "--profile", options.profile);
+    if (options.jsonOutput) args.push("--json");
+    if (options.planPath) args.push("--plan", options.planPath);
+    if (options.runId) args.push("--run-id", options.runId);
+    if (options.dryRun) args.push("--dry-run");
+    if (options.endpointUrl) args.push("--endpoint-url", options.endpointUrl);
+  }
 
-  logger.info(`Running blueprint: ${options.action} (profile: ${options.profile})`);
+  const engineLabel = engine.useSubcommand ? "Rust" : "Python";
+  logger.info(`Running blueprint (${engineLabel}): ${options.action} (profile: ${options.profile})`);
 
   return new Promise((resolve) => {
     const chunks: string[] = [];
-    const proc = spawn("python3", args, {
+    const proc = spawn(engine.program, args, {
       cwd: options.blueprintPath,
       env: {
         ...process.env,
@@ -89,7 +127,7 @@ export async function execBlueprint(
 
     proc.on("error", (err) => {
       const msg = err.message.includes("ENOENT")
-        ? "python3 not found. The blueprint runner requires Python 3.11+."
+        ? `${engineLabel} engine not found. Install nemoclaw-engine or Python 3.11+.`
         : `Failed to start blueprint runner: ${err.message}`;
       logger.error(msg);
       resolve(failResult(options.action, msg));
