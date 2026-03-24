@@ -440,7 +440,6 @@ dependencies = [
  "clap",
  "dirs",
  "psm-mcp-core",
- "psm-mcp-policy",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -546,23 +545,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "psm-mcp-policy"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "psm-mcp-core",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml",
  "thiserror",
  "tokio",
  "tracing",

@@ -11,7 +11,6 @@ path = "src/main.rs"
 
 [dependencies]
 psm-mcp-core = { path = "../../psm-mcp-core/psm-mcp-core" }
-psm-mcp-policy = { path = "../../psm-mcp-core/psm-mcp-policy" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -14,13 +14,21 @@ pub struct ShellOutput {
 
 /// Run `openshell` with the given args and return output.
 pub async fn run_openshell(args: &[&str]) -> Result<ShellOutput> {
-    run_command("openshell", args, None).await
+    run_command("openshell", args, None, &[]).await
+}
+
+/// Run `openshell` with the given args and extra environment variables.
+pub async fn run_openshell_with_env(
+    args: &[&str],
+    env_vars: &[(&str, &str)],
+) -> Result<ShellOutput> {
+    run_command("openshell", args, None, env_vars).await
 }
 
 /// Run `openshell` and fail on non-zero exit.
 #[allow(dead_code)]
 pub async fn run_openshell_checked(args: &[&str]) -> Result<ShellOutput> {
-    let output = run_openshell(args).await?;
+    let output = run_command("openshell", args, None, &[]).await?;
     if output.exit_code != 0 {
         bail!(
             "openshell {} failed (exit {}): {}",
@@ -34,22 +42,26 @@ pub async fn run_openshell_checked(args: &[&str]) -> Result<ShellOutput> {
 
 /// Check if `openshell` CLI is available.
 pub async fn openshell_available() -> bool {
-    run_command("openshell", &["--version"], Some(Duration::from_secs(5)))
+    run_command("openshell", &["--version"], Some(Duration::from_secs(5)), &[])
         .await
         .map(|o| o.exit_code == 0)
         .unwrap_or(false)
 }
 
-/// Run an arbitrary command with optional timeout.
+/// Run an arbitrary command with optional timeout and extra env vars.
 async fn run_command(
     program: &str,
     args: &[&str],
     timeout: Option<Duration>,
+    env_vars: &[(&str, &str)],
 ) -> Result<ShellOutput> {
     debug!(program, ?args, "running command");
 
     let mut cmd = Command::new(program);
     cmd.args(args);
+    for (key, value) in env_vars {
+        cmd.env(key, value);
+    }
 
     let timeout = timeout.unwrap_or(Duration::from_secs(120));
 
@@ -77,14 +89,14 @@ mod tests {
 
     #[tokio::test]
     async fn run_echo() {
-        let out = run_command("echo", &["hello"], None).await.unwrap();
+        let out = run_command("echo", &["hello"], None, &[]).await.unwrap();
         assert_eq!(out.exit_code, 0);
         assert!(out.stdout.contains("hello"));
     }
 
     #[tokio::test]
     async fn run_false_returns_nonzero() {
-        let out = run_command("false", &[], None).await.unwrap();
+        let out = run_command("false", &[], None, &[]).await.unwrap();
         assert_ne!(out.exit_code, 0);
     }
 

@@ -1,9 +1,10 @@
 use crate::blueprint::load_blueprint;
 use crate::protocol::emit_progress;
-use crate::shell::{openshell_available, run_openshell};
+use crate::shell::{openshell_available, run_openshell, run_openshell_with_env};
 use crate::state::{save_state, InferenceState, RunState};
 use anyhow::{bail, Result};
 use chrono::Utc;
+use psm_mcp_core::input::validate_sandbox_name;
 use std::env;
 
 pub async fn execute(
@@ -24,6 +25,7 @@ pub async fn execute(
         .unwrap_or_else(|| profile.endpoint.clone());
 
     let sandbox_name = &bp.components.sandbox.name;
+    validate_sandbox_name(sandbox_name)?;
     let sandbox_image = &bp.components.sandbox.image;
 
     // Step 1: Create sandbox
@@ -80,16 +82,22 @@ pub async fn execute(
     ];
 
     if !credential.is_empty() {
-        provider_args.push("--credential".to_string());
-        provider_args.push(format!("OPENAI_API_KEY={credential}"));
+        provider_args.push("--credential-env".to_string());
+        provider_args.push("OPENAI_API_KEY".to_string());
     }
     if !endpoint.is_empty() {
         provider_args.push("--config".to_string());
         provider_args.push(format!("OPENAI_BASE_URL={endpoint}"));
     }
 
+    let env_vars: Vec<(&str, &str)> = if !credential.is_empty() {
+        vec![("OPENAI_API_KEY", credential.as_str())]
+    } else {
+        vec![]
+    };
+
     let provider_refs: Vec<&str> = provider_args.iter().map(|s| s.as_str()).collect();
-    let output = run_openshell(&provider_refs).await?;
+    let output = run_openshell_with_env(&provider_refs, &env_vars).await?;
     if output.exit_code != 0 && !output.stderr.contains("already exists") {
         bail!("Failed to configure provider: {}", output.stderr.trim());
     }
