@@ -64,9 +64,6 @@ path = os.path.expanduser('~/.openclaw/openclaw.json'); \
 json.dump(config, open(path, 'w'), indent=2); \
 os.chmod(path, 0o600)"
 
-# Install NemoClaw plugin into OpenClaw
-RUN openclaw doctor --fix > /dev/null 2>&1 || true \
-    && openclaw plugins install /opt/nemoclaw > /dev/null 2>&1 || true
-
-ENTRYPOINT ["/bin/bash"]
+# Plugin install deferred to runtime (openclaw doctor needs network)
+ENTRYPOINT ["/usr/local/bin/nemoclaw-start"]
 CMD []
