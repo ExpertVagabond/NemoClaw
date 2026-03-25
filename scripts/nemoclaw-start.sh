@@ -44,12 +44,20 @@ if chat_origin not in origins:
 
 gateway = cfg.setdefault('gateway', {})
 gateway['mode'] = 'local'
+gateway['auth'] = {'mode': 'none'}
 gateway['controlUi'] = {
     'allowInsecureAuth': True,
     'dangerouslyDisableDeviceAuth': True,
     'allowedOrigins': origins,
 }
 gateway['trustedProxies'] = ['127.0.0.1', '::1']
+
+# Set NVIDIA NIM endpoint if API key is available
+nvidia_key = os.environ.get('NVIDIA_API_KEY', 'openshell-managed')
+nim_url = os.environ.get('NIM_ENDPOINT', 'https://integrate.api.nvidia.com/v1')
+providers = cfg.setdefault('models', {}).setdefault('providers', {}).setdefault('nim', {})
+providers['baseUrl'] = nim_url
+providers['apiKey'] = nvidia_key
 
 with open(config_path, 'w') as f:
     json.dump(cfg, f, indent=2)
@@ -179,7 +187,7 @@ if [ ${#NEMOCLAW_CMD[@]} -gt 0 ]; then
   exec "${NEMOCLAW_CMD[@]}"
 fi
 
-nohup openclaw gateway run > /tmp/gateway.log 2>&1 &
+nohup openclaw gateway run --auth none > /tmp/gateway.log 2>&1 &
 GATEWAY_PID=$!
 echo "[gateway] openclaw gateway launched (pid ${GATEWAY_PID})"
 start_auto_pair
