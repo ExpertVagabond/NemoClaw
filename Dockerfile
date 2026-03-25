@@ -16,7 +16,7 @@ RUN groupadd -r sandbox && useradd -r -g sandbox -d /sandbox -s /bin/bash sandbo
     && chown -R sandbox:sandbox /sandbox
 
 # Install OpenClaw CLI
-RUN npm install -g openclaw@2026.3.11
+RUN npm install -g openclaw@latest
 
 # Install PyYAML for blueprint runner
 RUN pip3 install --break-system-packages pyyaml
@@ -54,7 +54,7 @@ import json, os; \
 config = { \
     'agents': {'defaults': {'model': {'primary': 'nvidia/nemotron-3-super-120b-a12b'}}}, \
     'models': {'mode': 'merge', 'providers': {'nvidia': { \
-        'baseUrl': 'https://inference.local/v1', \
+        'baseUrl': 'https://integrate.api.nvidia.com/v1', \
         'apiKey': 'openshell-managed', \
         'api': 'openai-completions', \
         'models': [{'id': 'nemotron-3-super-120b-a12b', 'name': 'NVIDIA Nemotron 3 Super 120B', 'reasoning': False, 'input': ['text'], 'cost': {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0}, 'contextWindow': 131072, 'maxTokens': 4096}] \
